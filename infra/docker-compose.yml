@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: identity-control-plane-postgres
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: identity_user
+      POSTGRES_PASSWORD: identity_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
