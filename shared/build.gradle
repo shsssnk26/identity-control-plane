@@ -1,0 +1,7 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'org.springframework:spring-web:6.1.8'
+}
