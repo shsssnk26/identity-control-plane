@@ -1,5 +1,7 @@
 package io.identitycontrolplane.auth.controller;
 
+import io.identitycontrolplane.auth.dto.AuthResponse;
+import io.identitycontrolplane.auth.dto.LoginRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
     private final AuthService authService;
 
     public AuthController(AuthService authService) {
@@ -21,7 +24,12 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public void register(@Valid @RequestBody RegisterRequest request) {
-        authService.register(request);
+    public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+        return authService.register(request);
+    }
+
+    @PostMapping("/login")
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 }
