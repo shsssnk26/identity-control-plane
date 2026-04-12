@@ -2,6 +2,7 @@ package io.identitycontrolplane.auth.controller;
 
 import io.identitycontrolplane.auth.dto.AuthResponse;
 import io.identitycontrolplane.auth.dto.LoginRequest;
+import io.identitycontrolplane.auth.dto.RefreshRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -31,5 +32,10 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request);
     }
 }

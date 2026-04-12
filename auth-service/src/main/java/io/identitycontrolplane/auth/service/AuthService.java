@@ -2,6 +2,7 @@ package io.identitycontrolplane.auth.service;
 
 import io.identitycontrolplane.auth.dto.AuthResponse;
 import io.identitycontrolplane.auth.dto.LoginRequest;
+import io.identitycontrolplane.auth.dto.RefreshRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.model.RefreshToken;
 import io.identitycontrolplane.auth.model.Role;
@@ -87,6 +88,27 @@ public class AuthService {
         }
 
         return issueTokens(user);
+    }
+
+    public AuthResponse refresh(RefreshRequest request) {
+        String tokenHash = cryptoUtil.sha256(request.getRefreshToken());
+
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+
+        if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Refresh token expired");
+        }
+
+        if (refreshToken.getRevokedAt() != null) {
+            throw new IllegalArgumentException("Refresh token revoked");
+        }
+
+        // Rotate — revoke old token before issuing new one
+        refreshToken.setRevokedAt(LocalDateTime.now());
+        refreshTokenRepository.save(refreshToken);
+
+        return issueTokens(refreshToken.getUser());
     }
 
     private AuthResponse issueTokens(User user) {
