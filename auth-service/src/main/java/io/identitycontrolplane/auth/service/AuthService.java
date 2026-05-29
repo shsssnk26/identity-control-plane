@@ -4,6 +4,11 @@ import io.identitycontrolplane.auth.dto.AuthResponse;
 import io.identitycontrolplane.auth.dto.LoginRequest;
 import io.identitycontrolplane.auth.dto.RefreshRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
+import io.identitycontrolplane.auth.exception.AccountDisabledException;
+import io.identitycontrolplane.auth.exception.BadCredentialsException;
+import io.identitycontrolplane.auth.exception.TokenExpiredException;
+import io.identitycontrolplane.auth.exception.TokenRevokedException;
+import io.identitycontrolplane.auth.exception.UserAlreadyExistsException;
 import io.identitycontrolplane.auth.model.RefreshToken;
 import io.identitycontrolplane.auth.model.Role;
 import io.identitycontrolplane.auth.model.User;
@@ -54,7 +59,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already in use");
+            throw new UserAlreadyExistsException(request.getEmail());
         }
 
         Role userRole = roleRepository.findByName("USER")
@@ -77,14 +82,14 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+                .orElseThrow(BadCredentialsException::new);
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new BadCredentialsException();
         }
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new IllegalStateException("Account is disabled");
+            throw new AccountDisabledException();
         }
 
         return issueTokens(user);
@@ -94,14 +99,14 @@ public class AuthService {
         String tokenHash = cryptoUtil.sha256(request.getRefreshToken());
 
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+                .orElseThrow(BadCredentialsException::new);
 
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Refresh token expired");
+            throw new TokenExpiredException();
         }
 
         if (refreshToken.getRevokedAt() != null) {
-            throw new IllegalArgumentException("Refresh token revoked");
+            throw new TokenRevokedException();
         }
 
         // Rotate — revoke old token before issuing new one
