@@ -39,6 +39,13 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(TokenReuseDetectedException.class)
+    public ProblemDetail handleTokenReuse(TokenReuseDetectedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
+        problem.setDetail(ex.getMessage());
+        return problem;
+    }
+
     // ── Validation ─────────────────────────────────────────────────────────
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -7,6 +7,7 @@ import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.exception.AccountDisabledException;
 import io.identitycontrolplane.auth.exception.BadCredentialsException;
 import io.identitycontrolplane.auth.exception.TokenExpiredException;
+import io.identitycontrolplane.auth.exception.TokenReuseDetectedException;
 import io.identitycontrolplane.auth.exception.TokenRevokedException;
 import io.identitycontrolplane.auth.exception.UserAlreadyExistsException;
 import io.identitycontrolplane.auth.model.RefreshToken;
@@ -24,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -70,14 +70,12 @@ public class AuthService {
         newUser.setEmail(request.getEmail());
         newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         newUser.setStatus(UserStatus.ACTIVE);
-        newUser.setCreatedAt(LocalDateTime.now());
-        newUser.setUpdatedAt(LocalDateTime.now());
-        newUser.setRoles(new HashSet<>());
+        newUser.setRoles(new java.util.HashSet<>());
         newUser.getRoles().add(userRole);
 
         userRepository.save(newUser);
 
-        return issueTokens(newUser);
+        return issueTokenFamily(newUser);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -92,7 +90,7 @@ public class AuthService {
             throw new AccountDisabledException();
         }
 
-        return issueTokens(user);
+        return issueTokenFamily(user);
     }
 
     public AuthResponse refresh(RefreshRequest request) {
@@ -101,22 +99,54 @@ public class AuthService {
         RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(BadCredentialsException::new);
 
+        // Reuse detection: token was already rotated (revoked by a prior refresh).
+        // This means either a replay attack or a stolen token was used first.
+        // Nuke the entire family — every session from this login is now untrusted.
+        if (refreshToken.getRevokedAt() != null) {
+            refreshTokenRepository.revokeAllByFamilyId(refreshToken.getFamilyId(), LocalDateTime.now());
+            throw new TokenReuseDetectedException();
+        }
+
+        // Absolute expiry check: the family-level expiry set at login time.
+        // Rotation does NOT extend this — no sliding window.
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new TokenExpiredException();
         }
 
-        if (refreshToken.getRevokedAt() != null) {
-            throw new TokenRevokedException();
-        }
-
-        // Rotate — revoke old token before issuing new one
+        // Rotate: mark old token dead before issuing new one.
         refreshToken.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(refreshToken);
 
-        return issueTokens(refreshToken.getUser());
+        // New token inherits the SAME expiresAt from the parent — absolute expiry enforced.
+        return issueRotatedToken(refreshToken.getUser(), refreshToken.getFamilyId(), refreshToken.getExpiresAt());
     }
 
-    private AuthResponse issueTokens(User user) {
+    public void logout(String rawRefreshToken) {
+        String tokenHash = cryptoUtil.sha256(rawRefreshToken);
+
+        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
+            // Revoke the entire family so all devices/tabs from this login are logged out.
+            refreshTokenRepository.revokeAllByFamilyId(token.getFamilyId(), LocalDateTime.now());
+        });
+        // Intentionally silent if token not found — logout should always succeed from client's perspective.
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Issues a brand-new token family (new familyId, fresh absolute expiry).
+     * Called on login and register.
+     */
+    private AuthResponse issueTokenFamily(User user) {
+        LocalDateTime absoluteExpiry = LocalDateTime.now().plusDays(refreshTokenExpiryDays);
+        return issueRotatedToken(user, UUID.randomUUID(), absoluteExpiry);
+    }
+
+    /**
+     * Issues a new refresh token within an existing family.
+     * Inherits familyId and expiresAt from the parent — expiry never slides.
+     */
+    private AuthResponse issueRotatedToken(User user, UUID familyId, LocalDateTime expiresAt) {
         List<String> roles = user.getRoles().stream()
                 .map(Role::getName)
                 .toList();
@@ -130,7 +160,8 @@ public class AuthService {
         refreshToken.setId(UUID.randomUUID());
         refreshToken.setUser(user);
         refreshToken.setTokenHash(tokenHash);
-        refreshToken.setExpiresAt(LocalDateTime.now().plusDays(refreshTokenExpiryDays));
+        refreshToken.setFamilyId(familyId);
+        refreshToken.setExpiresAt(expiresAt);
         refreshToken.setCreatedAt(LocalDateTime.now());
 
         refreshTokenRepository.save(refreshToken);
