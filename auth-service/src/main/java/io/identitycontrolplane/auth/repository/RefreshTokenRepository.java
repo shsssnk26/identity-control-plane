@@ -18,7 +18,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
      * Revokes all tokens in a family by setting revoked_at.
      * Called when reuse is detected — the entire login session becomes untrusted.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE RefreshToken rt SET rt.revokedAt = :now WHERE rt.familyId = :familyId AND rt.revokedAt IS NULL")
     void revokeAllByFamilyId(@Param("familyId") UUID familyId, @Param("now") LocalDateTime now);
 }

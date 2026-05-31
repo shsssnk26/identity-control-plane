@@ -8,7 +8,6 @@ import io.identitycontrolplane.auth.exception.AccountDisabledException;
 import io.identitycontrolplane.auth.exception.BadCredentialsException;
 import io.identitycontrolplane.auth.exception.TokenExpiredException;
 import io.identitycontrolplane.auth.exception.TokenReuseDetectedException;
-import io.identitycontrolplane.auth.exception.TokenRevokedException;
 import io.identitycontrolplane.auth.exception.UserAlreadyExistsException;
 import io.identitycontrolplane.auth.model.RefreshToken;
 import io.identitycontrolplane.auth.model.Role;
@@ -70,7 +69,7 @@ public class AuthService {
         newUser.setEmail(request.getEmail());
         newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         newUser.setStatus(UserStatus.ACTIVE);
-        newUser.setRoles(new java.util.HashSet<>());
+        newUser.setRoles(new HashSet<>());
         newUser.getRoles().add(userRole);
 
         userRepository.save(newUser);
@@ -117,7 +116,8 @@ public class AuthService {
         refreshToken.setRevokedAt(LocalDateTime.now());
         refreshTokenRepository.save(refreshToken);
 
-        // New token inherits the SAME expiresAt from the parent — absolute expiry enforced.
+        // New token inherits the SAME expiresAt from the parent — absolute expiry
+        // enforced.
         return issueRotatedToken(refreshToken.getUser(), refreshToken.getFamilyId(), refreshToken.getExpiresAt());
     }
 
@@ -128,7 +128,8 @@ public class AuthService {
             // Revoke the entire family so all devices/tabs from this login are logged out.
             refreshTokenRepository.revokeAllByFamilyId(token.getFamilyId(), LocalDateTime.now());
         });
-        // Intentionally silent if token not found — logout should always succeed from client's perspective.
+        // Intentionally silent if token not found — logout should always succeed from
+        // client's perspective.
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
