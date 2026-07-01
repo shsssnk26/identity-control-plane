@@ -39,8 +39,8 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(TokenReuseDetectedException.class)
-    public ProblemDetail handleTokenReuse(TokenReuseDetectedException ex) {
+    @ExceptionHandler(TokenExpiredException.class)
+    public ProblemDetail handleTokenExpired(TokenExpiredException ex) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
         problem.setDetail(ex.getMessage());
         return problem;
