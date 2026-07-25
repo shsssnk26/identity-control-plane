@@ -21,16 +21,18 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/auth/register",
                                 "/auth/login",
-                                "/auth/refresh",
                                 "/auth/logout",
+                                "/auth/me",
+                                "/auth/refresh",
+                                "/auth/register",
                                 "/.well-known/jwks.json",
                                 "/actuator/health",
-                                "/actuator/info"
-                        ).permitAll()
+                                "/actuator/info")
+                        .permitAll()
                         .anyRequest().authenticated());
-        // httpBasic removed: this service uses JWT-only auth — HTTP Basic was never intended
+        // httpBasic removed: this service uses JWT-only auth — HTTP Basic was never
+        // intended
         return http.build();
     }
 }

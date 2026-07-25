@@ -2,13 +2,16 @@ package io.identitycontrolplane.auth.controller;
 
 import io.identitycontrolplane.auth.dto.AuthResponse;
 import io.identitycontrolplane.auth.dto.LoginRequest;
+import io.identitycontrolplane.auth.dto.MeResponse;
 import io.identitycontrolplane.auth.dto.RefreshRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,5 +46,10 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request.getRefreshToken());
+    }
+
+    @GetMapping("/me")
+    public MeResponse me(@RequestHeader("Authorization") String authHeader) {
+        return authService.me(authHeader);
     }
 }

@@ -2,6 +2,7 @@ package io.identitycontrolplane.auth.service;
 
 import io.identitycontrolplane.auth.dto.AuthResponse;
 import io.identitycontrolplane.auth.dto.LoginRequest;
+import io.identitycontrolplane.auth.dto.MeResponse;
 import io.identitycontrolplane.auth.dto.RefreshRequest;
 import io.identitycontrolplane.auth.dto.RegisterRequest;
 import io.identitycontrolplane.auth.exception.AccountDisabledException;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -168,5 +170,22 @@ public class AuthService {
         refreshTokenRepository.save(refreshToken);
 
         return new AuthResponse(accessToken, rawRefreshToken, "Bearer");
+    }
+
+    public MeResponse me(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new BadCredentialsException();
+        }
+
+        String token = authHeader.substring("Bearer ".length());
+        io.jsonwebtoken.Claims claims = jwtUtil.parseToken(token);
+
+        String userId = claims.getSubject();
+        String email = claims.get("email", String.class);
+
+        @SuppressWarnings("unchecked")
+        List<String> roles = claims.get("roles", List.class);
+
+        return new MeResponse(userId, email, roles);
     }
 }
