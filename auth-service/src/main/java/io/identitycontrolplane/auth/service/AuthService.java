@@ -177,7 +177,7 @@ public class AuthService {
             throw new BadCredentialsException();
         }
 
-        String token = authHeader.substring(7);
+        String token = authHeader.substring("Bearer ".length());
         io.jsonwebtoken.Claims claims = jwtUtil.parseToken(token);
 
         String userId = claims.getSubject();
